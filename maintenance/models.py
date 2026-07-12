@@ -3,6 +3,7 @@ from django.conf import settings
 
 from assets.models import Asset
 from datetime import date
+from notifications.models import Notification
 
 class MaintenanceRecord(models.Model):
 
@@ -82,24 +83,33 @@ class MaintenanceRecord(models.Model):
         super().save(*args, **kwargs)
 
         if self.status in [
+            "Pending",
             "Approved",
             "Assigned",
             "In Progress"
         ]:
             self.asset.status = "Maintenance"
 
-        elif self.status == "Pending":
-            # Keep the current asset status until approved
-            pass
+            if self.asset.assigned_to:
+                Notification.objects.create(
+                    user=self.asset.assigned_to,
+                    title="Maintenance Started",
+                    message=f"{self.asset.asset_name} has been sent for maintenance."
+                )
 
         elif self.status == "Resolved":
             self.asset.status = "Available"
 
-            if self.status == "Resolved" and not self.completion_date:
-                self.completion_date = date.today()
+            if self.asset.assigned_to:
+                Notification.objects.create(
+                    user=self.asset.assigned_to,
+                    title="Maintenance Completed",
+                    message=f"{self.asset.asset_name} is ready for use."
+                )
 
         elif self.status == "Rejected":
             self.asset.status = "Available"
+
         self.asset.save()
 
     def __str__(self):

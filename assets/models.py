@@ -175,6 +175,8 @@ class AssetAllocation(models.Model):
         null=True
     )
 
+
+
     return_requested = models.BooleanField(
         default=False
     )
@@ -186,6 +188,14 @@ class AssetAllocation(models.Model):
     condition_check = models.CharField(
         max_length=100,
         blank=True
+    )
+
+    received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="received_assets"
     )
 
     def clean(self):
