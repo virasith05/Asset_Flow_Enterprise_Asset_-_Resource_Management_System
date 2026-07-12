@@ -2,7 +2,7 @@ from django.db import models
 from django.conf import settings
 
 from assets.models import Asset
-
+from datetime import date
 
 class MaintenanceRecord(models.Model):
 
@@ -82,15 +82,21 @@ class MaintenanceRecord(models.Model):
         super().save(*args, **kwargs)
 
         if self.status in [
-            "Pending",
             "Approved",
             "Assigned",
             "In Progress"
         ]:
             self.asset.status = "Maintenance"
 
+        elif self.status == "Pending":
+            # Keep the current asset status until approved
+            pass
+
         elif self.status == "Resolved":
             self.asset.status = "Available"
+
+            if self.status == "Resolved" and not self.completion_date:
+                self.completion_date = date.today()
 
         elif self.status == "Rejected":
             self.asset.status = "Available"

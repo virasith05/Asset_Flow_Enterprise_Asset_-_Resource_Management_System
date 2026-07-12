@@ -54,9 +54,16 @@ class TransferRequest(models.Model):
 
     def save(self, *args, **kwargs):
 
+        # Check previous status before saving
+        old_status = None
+
+        if self.pk:
+            old_status = TransferRequest.objects.get(pk=self.pk).status
+
         super().save(*args, **kwargs)
 
-        if self.status == "Approved":
+        # Execute transfer only once
+        if self.status == "Approved" and old_status != "Approved":
 
             # Close current allocation
             current = AssetAllocation.objects.filter(
@@ -77,10 +84,13 @@ class TransferRequest(models.Model):
                 status="Allocated"
             )
 
-            # Update asset owner
+            # Update asset
             self.asset.assigned_to = self.to_employee
             self.asset.status = "Allocated"
             self.asset.save()
 
+            # Save approval date
+            self.approved_date = date.today()
+            super().save(update_fields=["approved_date"])
     def __str__(self):
         return f"{self.asset.asset_tag} → {self.to_employee.username}"

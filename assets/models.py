@@ -2,6 +2,8 @@ from django.db import models
 from django.conf import settings
 
 from core.models import Department, AssetCategory
+from notifications.models import Notification
+from django.core.exceptions import ValidationError
 
 
 class Asset(models.Model):
@@ -173,15 +175,59 @@ class AssetAllocation(models.Model):
         null=True
     )
 
+    return_requested = models.BooleanField(
+        default=False
+    )
+
+    return_approved = models.BooleanField(
+        default=False
+    )
+
+    condition_check = models.CharField(
+        max_length=100,
+        blank=True
+    )
+
+    def clean(self):
+
+        if self.status == "Allocated":
+
+            already_allocated = AssetAllocation.objects.filter(
+                asset=self.asset,
+                status="Allocated"
+            ).exclude(pk=self.pk)
+
+            if already_allocated.exists():
+                raise ValidationError({
+                    "asset": "This asset is already allocated."
+                })
+
     def save(self, *args, **kwargs):
 
+        self.full_clean()
+
         super().save(*args, **kwargs)
+
+        Notification.objects.create(
+            user=self.employee,
+            title="Asset Allocated",
+            message=f"You have been assigned {self.asset.asset_name} ({self.asset.asset_tag})."
+        )
 
         if self.status == "Allocated":
             self.asset.status = "Allocated"
 
         elif self.status == "Returned":
-            self.asset.status = "Available"
+
+            if self.return_approved:
+
+                self.asset.status = "Available"
+
+                self.asset.assigned_to = None
+
+            else:
+
+                self.asset.status = "Allocated"
 
         self.asset.save()
 
